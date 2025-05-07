@@ -1,0 +1,15 @@
+{
+  "files": {
+    "main.css": "/uuid-bingo/static/css/main.e6c13ad2.css",
+    "main.js": "/uuid-bingo/static/js/main.874d5e74.js",
+    "static/js/453.7f041113.chunk.js": "/uuid-bingo/static/js/453.7f041113.chunk.js",
+    "index.html": "/uuid-bingo/index.html",
+    "main.e6c13ad2.css.map": "/uuid-bingo/static/css/main.e6c13ad2.css.map",
+    "main.874d5e74.js.map": "/uuid-bingo/static/js/main.874d5e74.js.map",
+    "453.7f041113.chunk.js.map": "/uuid-bingo/static/js/453.7f041113.chunk.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.e6c13ad2.css",
+    "static/js/main.874d5e74.js"
+  ]
+}
