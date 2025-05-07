@@ -42,7 +42,7 @@ export default function UUIDBingo() {
   };
 
   useEffect(() => {
-    callNewUuid(); // Call immediately on mount or interval change
+    callNewUuid();
     const interval = setInterval(() => {
       callNewUuid();
     }, intervalMs);
