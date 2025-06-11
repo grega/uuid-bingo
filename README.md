@@ -1,6 +1,8 @@
-# Getting Started with Create React App
+# UUID Bingo
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+https://grega.github.io/uuid-bingo/
+
+This is quite stupid.
 
 ## Available Scripts
 
