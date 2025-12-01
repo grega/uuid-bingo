@@ -31,9 +31,9 @@ const PlayerBoard = ({ uuids, calledUuids }) => (
 export default function UUIDBingo() {
   const [calledUuids, setCalledUuids] = useState([]);
   const [currentUuid, setCurrentUuid] = useState("");
-  const [intervalMs, setIntervalMs] = useState(5000);
+  const [intervalMs, setIntervalMs] = useState(1000);
   const [poolSliderValue, setPoolSliderValue] = useState(2);
-  const [poolSize, setPoolSize] = useState(100);
+  const [poolSize, setPoolSize] = useState(500);
   const [uuidPool, setUuidPool] = useState([]);
   const [boards, setBoards] = useState([]);
   const [winnerIndex, setWinnerIndex] = useState(null);
@@ -100,7 +100,7 @@ export default function UUIDBingo() {
     <div className="min-h-screen bg-gray-50 p-4 flex flex-col items-center justify-center space-y-4">
       <h1 className="text-xl font-bold">UUID Bingo</h1>
       {winnerIndex !== null && (
-        <div className="text-green-600 font-semibold">🎉 Player {winnerIndex + 1} has completed their board!</div>
+        <div className="text-green-600 font-semibold">🎉 Player {winnerIndex + 1} has completed their board! 🎉</div>
       )}
       <div className="text-sm">Current UUID:</div>
       <div className="text-center font-mono text-lg break-all bg-white border p-2 rounded shadow">
@@ -108,12 +108,12 @@ export default function UUIDBingo() {
       </div>
 
       <div className="flex flex-col items-center space-y-2">
-        <label className="text-xs">Speed: 1 UUID every {(intervalMs / 1000).toFixed(1)}s</label>
+        <label className="text-xs">Speed: 1 UUID every {(intervalMs / 1000).toFixed(3)}s</label>
         <input
           type="range"
-          min="100"
+          min="1"
           max="10000"
-          step="100"
+          step="1"
           value={intervalMs}
           onChange={(e) => setIntervalMs(Number(e.target.value))}
           className="w-64"
