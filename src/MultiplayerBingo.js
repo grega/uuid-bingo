@@ -454,7 +454,7 @@ export default function MultiplayerBingo() {
   if (phase === "lobby") {
     return (
       <div className="min-h-screen bg-gray-50 p-4 flex flex-col items-center justify-center space-y-6">
-        <h1 className="text-xl font-bold">UUID Bingo - Multiplayer</h1>
+        <h1 className="text-xl font-bold">UUID Bingo (multi-player)</h1>
         <p className="text-sm text-gray-500">
           Play with up to 4 players in real time
         </p>
@@ -525,7 +525,7 @@ export default function MultiplayerBingo() {
   if (phase === "waiting") {
     return (
       <div className="min-h-screen bg-gray-50 p-4 flex flex-col items-center justify-center space-y-6">
-        <h1 className="text-xl font-bold">UUID Bingo - Multiplayer</h1>
+        <h1 className="text-xl font-bold">UUID Bingo (multi-player)</h1>
 
         {error && (
           <div className="text-red-600 text-sm bg-red-50 border border-red-200 rounded px-3 py-2">
@@ -647,7 +647,7 @@ export default function MultiplayerBingo() {
   // render — playing
   return (
     <div className="min-h-screen bg-gray-50 p-4 flex flex-col items-center justify-center space-y-4">
-      <h1 className="text-xl font-bold">UUID Bingo - Multiplayer</h1>
+      <h1 className="text-xl font-bold">UUID Bingo (multi-player)</h1>
 
       <div className="text-xs text-gray-400">Room: {roomCode}</div>
 
