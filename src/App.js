@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from "react";
 import { v4 as uuidv4 } from "uuid";
+import { Link } from "react-router-dom";
 
 const generateUuidPool = (poolSize) => {
   const set = new Set();
@@ -98,7 +99,13 @@ export default function UUIDBingo() {
 
   return (
     <div className="min-h-screen bg-gray-50 p-4 flex flex-col items-center justify-center space-y-4">
-      <h1 className="text-xl font-bold">UUID Bingo</h1>
+      <h1 className="text-xl font-bold">UUID Bingo (single-player)</h1>
+      <Link
+        to="/multiplayer"
+        className="px-5 py-2 bg-blue-500 text-white rounded-lg font-semibold hover:bg-blue-600 transition shadow"
+      >
+        🎮 Play multi-player
+      </Link>
       {winnerIndex !== null && (
         <div className="text-green-600 font-semibold">🎉 Player {winnerIndex + 1} has completed their board! 🎉</div>
       )}
