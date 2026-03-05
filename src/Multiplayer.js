@@ -42,7 +42,7 @@ const PlayerBoard = ({ uuids, calledUuids }) => (
 );
 
 // main multiplayer component
-export default function MultiplayerBingo() {
+export default function Multiplayer() {
   // ui state
   const [phase, setPhase] = useState("lobby"); // lobby | waiting | playing
   const [role, setRole] = useState(null); // host | guest
@@ -54,6 +54,7 @@ export default function MultiplayerBingo() {
   const [connecting, setConnecting] = useState(false);
   const [nickname, setNickname] = useState("");
   const [nicknames, setNicknames] = useState({});
+  const [copied, setCopied] = useState(false);
 
   // game state
   const [boards, setBoards] = useState([]);
@@ -201,11 +202,11 @@ export default function MultiplayerBingo() {
 
     peer.on("connection", (conn) => {
       const openConns = connsRef.current.filter((c) => c.open);
-      if (openConns.length >= 3) {
+      if (openConns.length >= 7) {
         conn.on("open", () => {
           conn.send({
             type: "error",
-            message: "Game is full (max 4 players)",
+            message: "Game is full (max 8 players)",
           });
           setTimeout(() => conn.close(), 200);
         });
@@ -456,7 +457,7 @@ export default function MultiplayerBingo() {
       <div className="min-h-screen bg-gray-50 p-4 flex flex-col items-center justify-center space-y-6">
         <h1 className="text-xl font-bold">UUID Bingo (multi-player)</h1>
         <p className="text-sm text-gray-500">
-          Play with up to 4 players in real time
+          Play with up to 8 players in real time
         </p>
 
         {error && (
@@ -538,22 +539,30 @@ export default function MultiplayerBingo() {
           <div className="text-sm text-gray-500">Room Code</div>
           <div
             className="text-3xl font-mono font-bold tracking-[0.3em] text-blue-600 cursor-pointer select-all"
-            onClick={() => navigator.clipboard?.writeText(roomCode)}
+            onClick={() => {
+              navigator.clipboard?.writeText(roomCode);
+              setCopied(true);
+              setTimeout(() => setCopied(false), 2000);
+            }}
             title="Click to copy"
           >
             {roomCode}
           </div>
           <button
-            onClick={() => navigator.clipboard?.writeText(roomCode)}
-            className="text-xs text-blue-500 hover:underline"
+            onClick={() => {
+              navigator.clipboard?.writeText(roomCode);
+              setCopied(true);
+              setTimeout(() => setCopied(false), 2000);
+            }}
+            className={`text-xs hover:underline ${copied ? "text-green-600 font-semibold" : "text-blue-500"}`}
           >
-            Copy to clipboard
+            {copied ? "Copied!" : "Copy to clipboard"}
           </button>
 
           {/* player list */}
           <div className="border-t w-full pt-4">
             <div className="text-sm font-semibold mb-2">
-              Players ({playerCount}/4)
+              Players ({playerCount}/8)
             </div>
             {Array.from({ length: playerCount }, (_, i) => (
               <div
@@ -569,7 +578,7 @@ export default function MultiplayerBingo() {
                 {i === myIndex ? " — You" : ""}
               </div>
             ))}
-            {playerCount < 4 && (
+            {playerCount < 8 && (
               <div className="text-xs text-gray-400 mt-2 italic">
                 Waiting for more players to join…
               </div>
@@ -686,7 +695,7 @@ export default function MultiplayerBingo() {
       )}
 
       {/* player boards */}
-      <div className="grid grid-cols-2 gap-6 mt-4">
+      <div className={`grid gap-6 mt-4 ${boards.length <= 4 ? "grid-cols-2" : "grid-cols-4"}`}>
         {boards.map((board, i) => (
           <div
             key={i}
