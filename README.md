@@ -1,6 +1,6 @@
 # UUID Bingo
 
-https://grega.github.io/uuid-bingo/
+https://uuid-bingo.gregdev.com
 
 This is quite stupid.
 

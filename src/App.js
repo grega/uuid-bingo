@@ -99,7 +99,8 @@ export default function UUIDBingo() {
 
   return (
     <div className="min-h-screen bg-gray-50 p-4 flex flex-col items-center justify-center space-y-4">
-      <h1 className="text-xl font-bold">UUID Bingo (single-player)</h1>
+      <h1 className="text-xl font-bold">UUID Bingo: single-player</h1>
+      <h2 className="text-l font-bold">(this is quite stupid)</h2>
       <Link
         to="/multiplayer"
         className="px-5 py-2 bg-blue-500 text-white rounded-lg font-semibold hover:bg-blue-600 transition shadow"
