@@ -42,7 +42,7 @@ const PlayerBoard = ({ uuids, calledUuids }) => (
 );
 
 // main multiplayer component
-export default function MultiplayerBingo() {
+export default function Multiplayer() {
   // ui state
   const [phase, setPhase] = useState("lobby"); // lobby | waiting | playing
   const [role, setRole] = useState(null); // host | guest
@@ -52,6 +52,9 @@ export default function MultiplayerBingo() {
   const [myIndex, setMyIndex] = useState(0);
   const [error, setError] = useState("");
   const [connecting, setConnecting] = useState(false);
+  const [nickname, setNickname] = useState("");
+  const [nicknames, setNicknames] = useState({});
+  const [copied, setCopied] = useState(false);
 
   // game state
   const [boards, setBoards] = useState([]);
@@ -71,11 +74,17 @@ export default function MultiplayerBingo() {
   const winnerRef = useRef(null);
   const intervalMsRef = useRef(1000);
   const timeoutRef = useRef(null);
+  const nicknamesRef = useRef({});
+  const connNicknameMapRef = useRef(new Map());
 
   // keep refs in sync with state
   useEffect(() => {
     intervalMsRef.current = intervalMs;
   }, [intervalMs]);
+
+  useEffect(() => {
+    nicknamesRef.current = nicknames;
+  }, [nicknames]);
 
   // cleanup on unmount
   useEffect(() => {
@@ -95,6 +104,29 @@ export default function MultiplayerBingo() {
         } catch (_) {
           /* ignore */
         }
+    });
+  };
+
+  const rebuildAndBroadcastNicknames = () => {
+    const nicks = { 0: nicknamesRef.current[0] || "Player 1" };
+    const openConns = connsRef.current.filter((c) => c.open);
+    openConns.forEach((conn, i) => {
+      nicks[i + 1] =
+        connNicknameMapRef.current.get(conn) || `Player ${i + 2}`;
+    });
+    nicknamesRef.current = nicks;
+    setNicknames(nicks);
+    const count = openConns.length + 1;
+    setPlayerCount(count);
+    openConns.forEach((conn, i) => {
+      if (conn.open) {
+        conn.send({
+          type: "nicknameUpdate",
+          nicknames: nicks,
+          yourIndex: i + 1,
+          playerCount: count,
+        });
+      }
     });
   };
 
@@ -132,11 +164,11 @@ export default function MultiplayerBingo() {
   };
 
   const getLabel = (i) => {
-    const base = `Player ${i + 1}`;
+    const name = nicknames[i] || `Player ${i + 1}`;
     const tags = [];
     if (i === 0) tags.push("Host");
     if (i === myIndex) tags.push("You");
-    return tags.length ? `${base} (${tags.join(", ")})` : base;
+    return tags.length ? `${name} (${tags.join(", ")})` : name;
   };
 
   // host logic
@@ -148,6 +180,12 @@ export default function MultiplayerBingo() {
     setMyIndex(0);
     setPlayerCount(1);
     setPhase("waiting");
+
+    const hostNick = nickname.trim() || "Player 1";
+    const initialNicknames = { 0: hostNick };
+    nicknamesRef.current = initialNicknames;
+    connNicknameMapRef.current = new Map();
+    setNicknames(initialNicknames);
 
     const peer = new Peer(PEER_PREFIX + code, { debug: 0 });
     peerRef.current = peer;
@@ -164,11 +202,11 @@ export default function MultiplayerBingo() {
 
     peer.on("connection", (conn) => {
       const openConns = connsRef.current.filter((c) => c.open);
-      if (openConns.length >= 3) {
+      if (openConns.length >= 7) {
         conn.on("open", () => {
           conn.send({
             type: "error",
-            message: "Game is full (max 4 players)",
+            message: "Game is full (max 8 players)",
           });
           setTimeout(() => conn.close(), 200);
         });
@@ -179,20 +217,28 @@ export default function MultiplayerBingo() {
         connsRef.current = [...connsRef.current, conn];
         const count = connsRef.current.filter((c) => c.open).length + 1;
         setPlayerCount(count);
-        // welcome the new guest
-        conn.send({ type: "welcome", playerCount: count });
-        // notify everyone else
-        connsRef.current.forEach((c) => {
-          if (c !== conn && c.open)
-            c.send({ type: "playerUpdate", playerCount: count });
+        conn.send({
+          type: "welcome",
+          playerCount: count,
+          nicknames: nicknamesRef.current,
         });
+        rebuildAndBroadcastNicknames();
+      });
+
+      conn.on("data", (data) => {
+        if (data.type === "setNickname") {
+          connNicknameMapRef.current.set(
+            conn,
+            data.nickname || "Player"
+          );
+          rebuildAndBroadcastNicknames();
+        }
       });
 
       conn.on("close", () => {
+        connNicknameMapRef.current.delete(conn);
         connsRef.current = connsRef.current.filter((c) => c !== conn);
-        const count = connsRef.current.filter((c) => c.open).length + 1;
-        setPlayerCount(count);
-        broadcast({ type: "playerUpdate", playerCount: count });
+        rebuildAndBroadcastNicknames();
       });
     });
   };
@@ -229,6 +275,7 @@ export default function MultiplayerBingo() {
         playerCount: total,
         poolSize,
         intervalMs,
+        nicknames: nicknamesRef.current,
       });
     });
 
@@ -262,6 +309,7 @@ export default function MultiplayerBingo() {
     setWinnerIndex(null);
     setPlayerCount(count);
 
+    rebuildAndBroadcastNicknames();
     broadcast({ type: "lobby", playerCount: count });
   };
 
@@ -277,6 +325,7 @@ export default function MultiplayerBingo() {
     setConnecting(true);
     setRoomCode(code);
     setRole("guest");
+    setMyIndex(-1);
 
     // timeout so the guest isn't stuck forever
     timeoutRef.current = setTimeout(() => {
@@ -297,15 +346,25 @@ export default function MultiplayerBingo() {
         clearTimeout(timeoutRef.current);
         setConnecting(false);
         setPhase("waiting");
+        conn.send({
+          type: "setNickname",
+          nickname: nickname.trim() || "Player",
+        });
       });
 
       conn.on("data", (data) => {
         switch (data.type) {
           case "welcome":
             setPlayerCount(data.playerCount);
+            if (data.nicknames) setNicknames(data.nicknames);
             break;
           case "playerUpdate":
             setPlayerCount(data.playerCount);
+            break;
+          case "nicknameUpdate":
+            setNicknames(data.nicknames);
+            if (data.yourIndex != null) setMyIndex(data.yourIndex);
+            if (data.playerCount != null) setPlayerCount(data.playerCount);
             break;
           case "start":
             setMyIndex(data.yourIndex);
@@ -313,6 +372,7 @@ export default function MultiplayerBingo() {
             setPlayerCount(data.playerCount);
             setPoolSize(data.poolSize);
             setIntervalMs(data.intervalMs);
+            if (data.nicknames) setNicknames(data.nicknames);
             setCalledUuids([]);
             setCurrentUuid("");
             setWinnerIndex(null);
@@ -384,6 +444,7 @@ export default function MultiplayerBingo() {
     setPlayerCount(0);
     setError("");
     setConnecting(false);
+    setNicknames({});
     setBoards([]);
     setCalledUuids([]);
     setCurrentUuid("");
@@ -394,9 +455,9 @@ export default function MultiplayerBingo() {
   if (phase === "lobby") {
     return (
       <div className="min-h-screen bg-gray-50 p-4 flex flex-col items-center justify-center space-y-6">
-        <h1 className="text-xl font-bold">UUID Bingo - Multiplayer</h1>
+        <h1 className="text-xl font-bold">UUID Bingo (multi-player)</h1>
         <p className="text-sm text-gray-500">
-          Play with up to 4 players in real time
+          Play with up to 8 players in real time
         </p>
 
         {error && (
@@ -405,32 +466,50 @@ export default function MultiplayerBingo() {
           </div>
         )}
 
-        <button
-          onClick={hostGame}
-          className="px-6 py-3 bg-blue-500 text-white rounded-lg font-semibold hover:bg-blue-600 transition shadow"
-        >
-          Host a Game
-        </button>
-
-        <div className="text-sm text-gray-400">— or —</div>
-
-        <div className="flex items-center space-x-2">
+        <div className="bg-white rounded-lg shadow-md p-5 flex flex-col items-center space-y-2 w-full max-w-sm">
+          <label className="text-sm font-semibold text-gray-600">Choose a nickname</label>
           <input
             type="text"
-            placeholder="Room code"
-            value={joinCode}
-            onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
-            onKeyDown={(e) => e.key === "Enter" && joinGame()}
-            className="border rounded px-3 py-2 text-center tracking-widest font-mono text-lg w-44"
-            maxLength={6}
+            placeholder="Enter a nickname"
+            value={nickname}
+            onChange={(e) => setNickname(e.target.value)}
+            className="border rounded px-3 py-2 text-center text-lg w-full"
+            maxLength={20}
           />
+        </div>
+
+        <div className="bg-white rounded-lg shadow-md p-5 flex flex-col items-center space-y-4 w-full max-w-sm">
           <button
-            onClick={joinGame}
-            disabled={connecting}
-            className="px-6 py-2 bg-green-500 text-white rounded-lg font-semibold hover:bg-green-600 transition shadow disabled:opacity-50"
+            onClick={hostGame}
+            className="w-full py-3 bg-blue-500 text-white rounded-lg font-semibold hover:bg-blue-600 transition shadow"
           >
-            {connecting ? "Connecting…" : "Join"}
+            Host a Game
           </button>
+
+          <div className="flex items-center w-full space-x-3">
+            <div className="flex-1 border-t border-gray-200" />
+            <span className="text-sm text-gray-400">or join</span>
+            <div className="flex-1 border-t border-gray-200" />
+          </div>
+
+          <div className="flex items-center space-x-2 w-full">
+            <input
+              type="text"
+              placeholder="Room code"
+              value={joinCode}
+              onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+              onKeyDown={(e) => e.key === "Enter" && joinGame()}
+              className="border rounded px-3 py-2 text-center tracking-widest font-mono text-lg flex-1 min-w-0"
+              maxLength={6}
+            />
+            <button
+              onClick={joinGame}
+              disabled={connecting}
+              className="px-5 py-2 bg-green-500 text-white rounded-lg font-semibold hover:bg-green-600 transition shadow disabled:opacity-50 whitespace-nowrap shrink-0"
+            >
+              {connecting ? "Connecting…" : "Join"}
+            </button>
+          </div>
         </div>
 
         <Link
@@ -447,7 +526,7 @@ export default function MultiplayerBingo() {
   if (phase === "waiting") {
     return (
       <div className="min-h-screen bg-gray-50 p-4 flex flex-col items-center justify-center space-y-6">
-        <h1 className="text-xl font-bold">UUID Bingo - Multiplayer</h1>
+        <h1 className="text-xl font-bold">UUID Bingo (multi-player)</h1>
 
         {error && (
           <div className="text-red-600 text-sm bg-red-50 border border-red-200 rounded px-3 py-2">
@@ -460,38 +539,46 @@ export default function MultiplayerBingo() {
           <div className="text-sm text-gray-500">Room Code</div>
           <div
             className="text-3xl font-mono font-bold tracking-[0.3em] text-blue-600 cursor-pointer select-all"
-            onClick={() => navigator.clipboard?.writeText(roomCode)}
+            onClick={() => {
+              navigator.clipboard?.writeText(roomCode);
+              setCopied(true);
+              setTimeout(() => setCopied(false), 2000);
+            }}
             title="Click to copy"
           >
             {roomCode}
           </div>
           <button
-            onClick={() => navigator.clipboard?.writeText(roomCode)}
-            className="text-xs text-blue-500 hover:underline"
+            onClick={() => {
+              navigator.clipboard?.writeText(roomCode);
+              setCopied(true);
+              setTimeout(() => setCopied(false), 2000);
+            }}
+            className={`text-xs hover:underline ${copied ? "text-green-600 font-semibold" : "text-blue-500"}`}
           >
-            Copy to clipboard
+            {copied ? "Copied!" : "Copy to clipboard"}
           </button>
 
           {/* player list */}
           <div className="border-t w-full pt-4">
             <div className="text-sm font-semibold mb-2">
-              Players ({playerCount}/4)
+              Players ({playerCount}/8)
             </div>
             {Array.from({ length: playerCount }, (_, i) => (
               <div
                 key={i}
                 className={`text-sm py-1 px-2 rounded ${
-                  role === "host" && i === 0
+                  i === myIndex
                     ? "bg-blue-50 font-semibold text-blue-700"
                     : "text-gray-700"
                 }`}
               >
-                Player {i + 1}
+                {nicknames[i] || `Player ${i + 1}`}
                 {i === 0 ? " (Host)" : ""}
-                {role === "host" && i === 0 ? " — You" : ""}
+                {i === myIndex ? " — You" : ""}
               </div>
             ))}
-            {playerCount < 4 && (
+            {playerCount < 8 && (
               <div className="text-xs text-gray-400 mt-2 italic">
                 Waiting for more players to join…
               </div>
@@ -569,7 +656,7 @@ export default function MultiplayerBingo() {
   // render — playing
   return (
     <div className="min-h-screen bg-gray-50 p-4 flex flex-col items-center justify-center space-y-4">
-      <h1 className="text-xl font-bold">UUID Bingo - Multiplayer</h1>
+      <h1 className="text-xl font-bold">UUID Bingo (multi-player)</h1>
 
       <div className="text-xs text-gray-400">Room: {roomCode}</div>
 
@@ -603,11 +690,12 @@ export default function MultiplayerBingo() {
       ) : (
         <div className="text-xs text-gray-400">
           Speed: 1 UUID every {(intervalMs / 1000).toFixed(3)}s
+          &nbsp;·&nbsp;Pool: {poolSize} UUIDs
         </div>
       )}
 
       {/* player boards */}
-      <div className="grid grid-cols-2 gap-6 mt-4">
+      <div className={`grid gap-6 mt-4 ${boards.length <= 4 ? "grid-cols-2" : "grid-cols-4"}`}>
         {boards.map((board, i) => (
           <div
             key={i}
